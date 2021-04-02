@@ -1,0 +1,16 @@
+{
+	"authors": [
+		"Chigusa0w0"
+	],
+	"copyright": "Copyright © 2021, Chigusa0w0",
+	"dependencies": {
+		"asdf": "~>0.7.5"
+	},
+	"description": "Jieba Chinese Word Segmentation in D",
+	"dflags": [
+		"-J=\"./source/resources\"",
+		"-J=\"../source/resources\""
+	],
+	"license": "MIT",
+	"name": "jieba-d"
+}

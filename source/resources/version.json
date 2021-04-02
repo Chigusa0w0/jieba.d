@@ -1,0 +1,12 @@
+{
+  "Source":[
+    {
+      "Priority":0,
+      "Repo":"fxsjy/jieba",
+      "Commit":"67fa2e36e72f69d9134b8a1037b83fbb070b9775",
+      "Files": [
+        "*"
+      ]
+    }
+  ]
+}

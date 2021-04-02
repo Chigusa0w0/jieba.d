@@ -1,0 +1,20 @@
+{
+  "Source":[
+    {
+      "Priority":0,
+      "Repo":"fxsjy/jieba",
+      "Commit":"67fa2e36e72f69d9134b8a1037b83fbb070b9775",
+      "Files": [
+        "*"
+      ]
+    },
+    {
+      "Priority":1,
+      "Repo":"anderscui/jieba.NET",
+      "Commit":"c12ce441449350874a84d252db4e9b04ec5f3377",
+      "Files": [
+        "stopwords.txt.big"
+      ]
+    }
+  ]
+}
