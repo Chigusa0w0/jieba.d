@@ -7,6 +7,7 @@ import jieba.stdseg;
 
 void main()
 {
+	// todo: tokenizer, posseg, tests
 	auto x = new StandardTokenizer(`.\dict\dict.txt`);
 	x.addWord("测试用例");
 	x.addWord("隐藏问题");
@@ -16,5 +17,5 @@ void main()
     }
 	writeln;
 
-	system("pause");
+	// system("pause");
 }
