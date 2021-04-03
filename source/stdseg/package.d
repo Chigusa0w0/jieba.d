@@ -18,7 +18,7 @@ class StandardTokenizer {
     int[dstring] freq;
     ulong total;
     ulong maxlen;
-    string[string] userWordTags;
+    dstring[dstring] userWordTags;
     bool initialized;
 
     public:
@@ -28,7 +28,23 @@ class StandardTokenizer {
     }
 
     string[] cut(string sentence, bool cutAll = false, bool useHmm = true) {
-        string[] cutImpl(dstring sentence, bool cutAll, bool useHmm) {
+        return cut(sentence.dtext, cutAll, useHmm).map!(x => x.text).array;
+    }
+
+    string[] cutSearch(string sentence, bool cutAll = false, bool useHmm = true) {
+        return cutSearch(sentence.dtext, useHmm).map!(x => x.text).array;
+    }
+
+    void addWord(string word, int frequency = int.min, string tag = "") {
+        addWord(word.dtext, frequency, tag.dtext);
+    }
+
+    void delWord(string word) {
+        delWord(word.dtext);
+    }
+
+    dstring[] cut(dstring sentence, bool cutAll = false, bool useHmm = true) {
+        dstring[] cutImpl(dstring sentence, bool cutAll, bool useHmm) {
             if (cutAll) {
                 return cutImplAll(sentence);
             } else if (useHmm) {
@@ -38,7 +54,7 @@ class StandardTokenizer {
             }
         }
 
-        auto tokens = appender!(string[]);
+        auto tokens = appender!(dstring[]);
         auto blocks = sentence.splitter!(Yes.keepSeparators)(REGEX_HANIDEFAULT);
         foreach(blk; blocks) {
             if (blk == "") {
@@ -46,7 +62,7 @@ class StandardTokenizer {
             }
 
             if(!blk.matchFirst(REGEX_HANIDEFAULT).empty) {
-                auto cuts = cutImpl(blk.dtext, cutAll, useHmm);
+                auto cuts = cutImpl(blk, cutAll, useHmm);
                 tokens.put(cuts);
             } else {
                 auto temp = blk.splitter!(Yes.keepSeparators)(REGEX_SKIPDEFAULT);
@@ -54,8 +70,8 @@ class StandardTokenizer {
                     if (!blk.matchFirst(REGEX_HANIDEFAULT).empty) {
                         tokens.put(x);
                     } else if (!cutAll) {
-                        foreach(dch; tokens.dtext) {
-                            tokens.put(dch.text);
+                        foreach(dch; tokens) {
+                            tokens.put(dch);
                         }
                     } else {
                         tokens.put(x);
@@ -67,41 +83,39 @@ class StandardTokenizer {
         return tokens.array;
     }
 
-    void addWord(string word, int frequency = int.min, string tag = "") {
+    void addWord(dstring word, int frequency = int.min, dstring tag = "") {
         initialize();
-
-        auto dword = word.dtext;
 
         if (frequency == int.min) {
             frequency = suggestFreq(word);
         }
 
-        if (dword in freq) { // Python impl does not handle addition correctly when words repeat / delete words
-            total -= freq[dword];
+        if (word in freq) { // Python impl does not handle addition correctly when words repeat / delete words
+            total -= freq[word];
         }
 
-        freq[dword] = frequency;
+        freq[word] = frequency;
         total += frequency;
-        maxlen = max(maxlen, dword.length);
+        maxlen = max(maxlen, word.length);
 
         if (tag != "") {
             userWordTags[word] = tag;
         }
 
-        for(int i = 0; i < dword.length;) {
-            auto frag = dword[0 .. ++i];
+        for(int i = 0; i < word.length;) {
+            auto frag = word[0 .. ++i];
             if (frag !in freq) {
                 freq[frag] = 0;
             }
         }
     }
 
-    void delWord(string word) {
+    void delWord(dstring word) {
         addWord(word, 0);
     }
 
     void loadUserDict(string path) {
-        auto content = path.readText;
+        auto content = path.readText.dtext;
         content.validate;
 
         auto matches = content.matchAll(REGEX_USERDICT);
@@ -115,18 +129,18 @@ class StandardTokenizer {
         }
     }
 
-    string[] cutSearch(string sentence, bool useHmm = true) {
+    dstring[] cutSearch(dstring sentence, bool useHmm = true) {
         auto words = cut(sentence, false, useHmm);
-        auto tokens = appender!(string[]);
+        auto tokens = appender!(dstring[]);
 
         foreach(w; words) {
-            auto dw = w.dtext;
+            auto dw = w;
             for(int n = 2; n <= maxlen; n++) { // with maxlen, we can yield as many keywords as possible
                 if (dw.length > n) {
                     for(int i = 0; i <= dw.length - n; i++) {
                         auto gram = dw[i .. i + n];
                         if (freq.get(gram, 0) > 0) {
-                            tokens.put(gram.text);
+                            tokens.put(gram);
                         }
                     }
                 }
@@ -193,7 +207,7 @@ class StandardTokenizer {
             int[] temp;
 
             auto i = k;
-            auto frag = sentence[k].dtext;
+            auto frag = sentence[k .. k + 1];
 
             while ((i < n) && (frag in freq)) {
                 if (freq[frag] > 0) {
@@ -215,25 +229,25 @@ class StandardTokenizer {
         return dag;
     }
 
-    string[] cutImplAll(dstring sentence) { // python impl = __cut_all
+    dstring[] cutImplAll(dstring sentence) { // python impl = __cut_all
         auto dag = getDag(sentence);
 
         auto lastpos = -1;
-        auto tokens = appender!(string[]);
+        auto tokens = appender!(dstring[]);
         auto engscan = false;
         auto engbuf = appender!(dchar[]);
 
         foreach(kk, v; dag) { // int to force size_t -> int conversion
             auto k = cast(long) kk;
 
-            if (engscan && sentence[k].text.matchFirst(REGEX_ENGLISH).empty) {
+            if (engscan && sentence[k .. k + 1].matchFirst(REGEX_ENGLISH).empty) {
                 engscan = false;
-                tokens.put(engbuf.array.text);
+                tokens.put(cast(dstring) engbuf.array);
             }
 
             if ((v.length == 1) && (k > lastpos)) {
                 auto word = sentence[k .. v[0] + 1];
-                if (!word.text.matchFirst(REGEX_ENGLISH).empty) {
+                if (!word.matchFirst(REGEX_ENGLISH).empty) {
                     if (!engscan) {
                         engscan = true;
                         engbuf.clear();
@@ -243,14 +257,14 @@ class StandardTokenizer {
                 }
 
                 if (!engscan) {
-                    tokens.put(word.text);
+                    tokens.put(word);
                 }
 
                 lastpos = v[0];
             } else {
                 foreach(j; v) {
                     if (j > k) {
-                        tokens.put(sentence[k .. j + 1].text);
+                        tokens.put(sentence[k .. j + 1]);
                         lastpos = j;
                     }
                 }
@@ -258,13 +272,13 @@ class StandardTokenizer {
         }
 
         if (engscan) {
-            tokens.put(engbuf.array.text);
+            tokens.put(cast(dstring) engbuf.array);
         }
 
         return tokens.array;
     }
 
-    string[] cutImplDwoH(dstring sentence) { // python impl = __cut_DAG_NO_HMM
+    dstring[] cutImplDwoH(dstring sentence) { // python impl = __cut_DAG_NO_HMM
         auto dag = getDag(sentence);
         auto route = calc(sentence, dag);
 
@@ -272,53 +286,53 @@ class StandardTokenizer {
         auto n = sentence.length;
 
         auto buf = appender!(dchar[]);
-        auto tokens = appender!(string[]);
+        auto tokens = appender!(dstring[]);
 
         while(x < n) {
             auto y = route[x].key + 1;
             auto word = sentence[x .. y];
-            if ((y - x == 1) && word.text.match(REGEX_ENGLISH)) {
+            if ((y - x == 1) && word.match(REGEX_ENGLISH)) {
                 buf.put(word);
             } else {
-                auto arr = buf.array;
+                auto arr = cast(dstring) buf.array;
                 if (arr.length > 0) {
-                    tokens.put(arr.text);
+                    tokens.put(arr);
                     buf.clear();
                 }
 
-                tokens.put(word.text);
+                tokens.put(word);
             }
 
             x = y;
         }
 
-        auto arr = buf.array;
+        auto arr = cast(dstring) buf.array;
         if (arr.length > 0) {
-            tokens.put(arr.text);
+            tokens.put(arr);
             buf.clear();
         }
 
         return tokens.array;
     }
 
-    string[] cutImplDH(dstring sentence) { // python impl = __cut_DAG
-        void bufSeg(ref Appender!(dchar[]) buffer, ref Appender!(string[]) tokens) {
+    dstring[] cutImplDH(dstring sentence) { // python impl = __cut_DAG
+        void bufSeg(ref Appender!(dchar[]) buffer, ref Appender!(dstring[]) tokens) {
             import jieba.finalseg : finalcut = cut;
 
-            auto buf = buffer.array;
+            auto buf = cast(dstring) buffer.array;
 
             if (buf.length <= 0) return;
 
             if (buf.length == 1) {
-                tokens.put(buf.text);
+                tokens.put(buf);
             } else if (buf !in freq) {
-                auto recognized = finalcut(buf.text);
+                auto recognized = finalcut(buf);
                 foreach(t; recognized) {
                     tokens.put(t);
                 }
             } else {
                 foreach(ch; buf) {
-                    tokens.put(ch.text);
+                    tokens.put(ch.dtext);
                 }
             }
 
@@ -332,7 +346,7 @@ class StandardTokenizer {
         auto n = sentence.length;
 
         auto buf = appender!(dchar[]);
-        auto tokens = appender!(string[]);
+        auto tokens = appender!(dstring[]);
 
         while(x < n) {
             auto y = route[x].key + 1;
@@ -342,7 +356,7 @@ class StandardTokenizer {
             } else {
                 bufSeg(buf, tokens);
 
-                tokens.put(word.text);
+                tokens.put(word);
             }
 
             x = y;
@@ -353,7 +367,7 @@ class StandardTokenizer {
         return tokens.array;
     }
 
-    int suggestFreq(string segment) {
+    int suggestFreq(dstring segment) {
         import std.math : fmax;
 
         initialize();
@@ -362,20 +376,20 @@ class StandardTokenizer {
         auto ffreq = 1.0;
         auto cuts = cut(segment, false, false);
         foreach(cut; cuts) {
-            ffreq *= freq.get(cut.dtext, 1) / ftotal;
+            ffreq *= freq.get(cut, 1) / ftotal;
         }
-        ffreq = fmax(ffreq * ftotal + 1, cast(double) freq.get(segment.dtext, 1));
+        ffreq = fmax(ffreq * ftotal + 1, cast(double) freq.get(segment, 1));
 
         return cast(int) ffreq;
     }
 
     void load(string path) { // not MT safe/idempotent (total)
-        auto content = path.readText;
+        auto content = path.readText.dtext;
         content.validate;
 
         auto matches = content.matchAll(REGEX_USERDICT);
         foreach(match; matches) {
-            auto word = match[1].dtext;
+            auto word = match[1];
             auto ffreq = match[2].to!int;
             
             freq[word] = ffreq;
@@ -401,7 +415,7 @@ class StandardTokenizer {
 
 private:
 
-enum REGEX_USERDICT = regex(`^(.+?)(?:\s+([0-9]+))?(?:\s+([a-z]+))?$`, "m"); // modified regex to parse lines better
-enum REGEX_ENGLISH = regex(`[a-zA-Z0-9]`);
-enum REGEX_HANIDEFAULT = regex(`([\u4E00-\u9FD5a-zA-Z0-9+#&\._%\-]+)`);
-enum REGEX_SKIPDEFAULT = regex(`(\r\n|\s)`);
+enum REGEX_USERDICT = regex(`^(.+?)(?:\s+([0-9]+))?(?:\s+([a-z]+))?$`d, "m"); // modified regex to parse lines better
+enum REGEX_ENGLISH = regex(`[a-zA-Z0-9]`d);
+enum REGEX_HANIDEFAULT = regex(`([\u4E00-\u9FD5a-zA-Z0-9+#&\._%\-]+)`d);
+enum REGEX_SKIPDEFAULT = regex(`(\r\n|\s)`d);

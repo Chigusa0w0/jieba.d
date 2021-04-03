@@ -7,19 +7,19 @@ import std.regex;
 import std.typecons : Yes;
 import jieba.resources;
 
-auto cut(string sentence) {
+auto cut(dstring sentence) {
     auto blocks = sentence.splitter!(Yes.keepSeparators)(REGEX_HANI);
-    auto tokens = appender!(string[]);
+    auto tokens = appender!(dstring[]);
 
     foreach(blk; blocks) {
         if (!blk.matchFirst(REGEX_HANI).empty) {
-            auto words = cutImpl(blk.dtext);
+            auto words = cutImpl(blk);
             foreach(word; words) {
                 if (!ForceSplitWords.canFind(word)) {
                     tokens.put(word);
                 } else {
-                    foreach(ch; word.dtext) {
-                        tokens.put(ch.text);
+                    foreach(ch; word) {
+                        tokens.put(ch.dtext);
                     }
                 }
             }
@@ -36,8 +36,8 @@ private:
 
 enum MIN_FLOAT = -3.14e100;
 enum STATES = [ "B", "M", "S", "E" ];
-enum REGEX_HANI = regex(`([\u4E00-\u9FD5]+)`);
-enum REGEX_SKIP = regex(`([a-zA-Z0-9]+(?:\.\d+)?%?)`);
+enum REGEX_HANI = regex(`([\u4E00-\u9FD5]+)`d);
+enum REGEX_SKIP = regex(`([a-zA-Z0-9]+(?:\.\d+)?%?)`d);
 
 enum PREV_STATUS = ([
     "B": [ "E", "S" ],
@@ -46,7 +46,7 @@ enum PREV_STATUS = ([
     "E": [ "B", "M" ]
 ]);
 
-string[] ForceSplitWords = []; // though ready to use, we hide it from public interfaces
+dstring[] ForceSplitWords = []; // though ready to use, we hide it from public interfaces
 
 auto cutImpl(dstring sentence) { // python impl = __cut
     auto posLink = viterbi(sentence);
@@ -67,7 +67,7 @@ auto cutImpl(dstring sentence) { // python impl = __cut
     int begin = 0;
     int next = 0;
 
-    auto tokens = appender!(string[]);
+    auto tokens = appender!(dstring[]);
     for (auto i = 0; i < sentence.length; i++)
     {
         auto pos = posList[i];
@@ -75,16 +75,16 @@ auto cutImpl(dstring sentence) { // python impl = __cut
             begin = i;
         }
         else if (pos == "E") {
-            tokens.put(sentence[begin .. i + 1].text);
+            tokens.put(sentence[begin .. i + 1]);
             next = i + 1;
         }
         else if (pos == "S") {
-            tokens.put(sentence[i].text);
+            tokens.put(sentence[i .. i + 1]);
             next = i + 1;
         }
     }
     if (next < sentence.length) {
-        tokens.put(sentence[next .. $].text);
+        tokens.put(sentence[next .. $]);
     }
 
     return tokens.array;
