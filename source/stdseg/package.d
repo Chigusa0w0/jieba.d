@@ -10,7 +10,15 @@ import std.typecons : Yes;
 import std.utf : validate;
 import jieba.resources;
 
-class StandardTokenizer {
+/**
+ * Standard sentence segmenter implementation.
+ * This segmenter uses corpus word frequencies to segment sentences.
+ * For words corpus do not cover, the Viterbi algorithm is used to infer the word segmentation.
+ * This segmenter does not tag words.
+ *
+ * See_Also: `jieba.finalseg`, `jieba.posseg`
+ */
+class StandardSegmenter {
     public:
 
     private:
@@ -23,28 +31,83 @@ class StandardTokenizer {
 
     public:
 
-    this(string mainDict) {
+    /**
+     * Construct a `StandardTokenizer` with given main dictionary.
+     *
+     * Params:
+     *     mainDict = Path to the main dictionary.
+     */
+    this(string mainDict) @safe {
         dictionary = mainDict;
     }
 
-    string[] cut(string sentence, bool cutAll = false, bool useHmm = true) {
+    /**
+     * Segments a Chinese sentence into separated words.
+     *
+     * Params:
+     *     sentence = The string to be segmented.
+     *     cutAll =   Model type. True for full pattern, False for accurate pattern.
+     *     useHmm =   Whether to use the Hidden Markov Model.
+     *
+     * Returns:
+     *     An array containing all segments of the `sentence`.
+     */
+    string[] cut(string sentence, bool cutAll = false, bool useHmm = true) @safe {
         return cut(sentence.dtext, cutAll, useHmm).map!(x => x.text).array;
     }
 
-    string[] cutSearch(string sentence, bool cutAll = false, bool useHmm = true) {
+    /**
+     * Extract all words from a Chinese sentence.
+     * This method will extract as many words as possible, some of which may have overlapping parts.
+     *
+     * Params:
+     *     sentence = The string to be segmented.
+     *     useHmm =   Whether to use the Hidden Markov Model.
+     *
+     * Returns:
+     *     An array containing all segments of the `sentence`.
+     */
+    string[] cutSearch(string sentence, bool cutAll = false, bool useHmm = true) @safe {
         return cutSearch(sentence.dtext, useHmm).map!(x => x.text).array;
     }
 
-    void addWord(string word, int frequency = int.min, string tag = "") {
+    /**
+     * Add a single word into current dictionary.
+     * Words added using this method will NOT be persisted.
+     *
+     * Params:
+     *     word =      The word to be added.
+     *     frequency = Corpus word frequency of this word. If omitted, a calculated value that ensures the word can be cut out will be used.
+     *     tag =       Tag of the word.
+     */
+    void addWord(string word, int frequency = int.min, string tag = "") @safe {
         addWord(word.dtext, frequency, tag.dtext);
     }
 
-    void delWord(string word) {
+    /**
+     * Delete a single word from current dictionary.
+     * Words deleted using this method will NOT be persisted.
+     *
+     * Params:
+     *     word = The word to be deleted.
+     */
+    void delWord(string word) @safe {
         delWord(word.dtext);
     }
 
-    dstring[] cut(dstring sentence, bool cutAll = false, bool useHmm = true) {
-        dstring[] cutImpl(dstring sentence, bool cutAll, bool useHmm) {
+    /**
+     * Segments an entire Chinese sentence into separated words.
+     *
+     * Params:
+     *     sentence = The string to be segmented.
+     *     cutAll =   Model type. True for full pattern, False for accurate pattern.
+     *     useHmm =   Whether to use the Hidden Markov Model.
+     *
+     * Returns:
+     *     An array containing all segments of the `sentence`.
+     */
+    dstring[] cut(dstring sentence, bool cutAll = false, bool useHmm = true) @safe {
+        dstring[] cutImpl(dstring sentence, bool cutAll, bool useHmm) @safe {
             if (cutAll) {
                 return cutImplAll(sentence);
             } else if (useHmm) {
@@ -70,8 +133,8 @@ class StandardTokenizer {
                     if (!blk.matchFirst(REGEX_HANIDEFAULT).empty) {
                         tokens.put(x);
                     } else if (!cutAll) {
-                        foreach(dch; tokens) {
-                            tokens.put(dch);
+                        foreach(dch; x) {
+                            tokens.put(dch.dtext);
                         }
                     } else {
                         tokens.put(x);
@@ -83,7 +146,49 @@ class StandardTokenizer {
         return tokens.array;
     }
 
-    void addWord(dstring word, int frequency = int.min, dstring tag = "") {
+    /**
+     * Extract all words from a Chinese sentence.
+     * This method will extract as many words as possible, some of which may have overlapping parts.
+     *
+     * Params:
+     *     sentence = The string to be segmented.
+     *     useHmm =   Whether to use the Hidden Markov Model.
+     *
+     * Returns:
+     *     An array containing all segments of the `sentence`.
+     */
+    dstring[] cutSearch(dstring sentence, bool useHmm = true) @safe {
+        auto words = cut(sentence, false, useHmm);
+        auto tokens = appender!(dstring[]);
+
+        foreach(w; words) {
+            auto dw = w;
+            for(int n = 2; n <= maxlen; n++) { // with maxlen, we can yield as many keywords as possible
+                if (dw.length > n) {
+                    for(int i = 0; i <= dw.length - n; i++) {
+                        auto gram = dw[i .. i + n];
+                        if (freq.get(gram, 0) > 0) {
+                            tokens.put(gram);
+                        }
+                    }
+                }
+            }
+            tokens.put(w);
+        }
+
+        return tokens.array;
+    }
+
+    /**
+     * Add a single word into current dictionary.
+     * Words added using this method will NOT be persisted.
+     *
+     * Params:
+     *     word =      The word to be added.
+     *     frequency = Corpus word frequency of this word. If omitted, a calculated value that ensures the word can be cut out will be used.
+     *     tag =       Tag of the word.
+     */
+    void addWord(dstring word, int frequency = int.min, dstring tag = "") @safe {
         initialize();
 
         if (frequency == int.min) {
@@ -110,11 +215,24 @@ class StandardTokenizer {
         }
     }
 
-    void delWord(dstring word) {
+    /**
+     * Delete a single word from current dictionary.
+     * Words deleted using this method will NOT be persisted.
+     *
+     * Params:
+     *     word = The word to be deleted.
+     */
+    void delWord(dstring word) @safe {
         addWord(word, 0);
     }
 
-    void loadUserDict(string path) {
+    /**
+     * Load a user-defined dictionary alongside the main dictionary from the given path.
+     *
+     * Params:
+     *     path = Path to the dictionary file.
+     */
+    void loadUserDict(string path) @safe {
         auto content = path.readText.dtext;
         content.validate;
 
@@ -129,31 +247,15 @@ class StandardTokenizer {
         }
     }
 
-    dstring[] cutSearch(dstring sentence, bool useHmm = true) {
-        auto words = cut(sentence, false, useHmm);
-        auto tokens = appender!(dstring[]);
-
-        foreach(w; words) {
-            auto dw = w;
-            for(int n = 2; n <= maxlen; n++) { // with maxlen, we can yield as many keywords as possible
-                if (dw.length > n) {
-                    for(int i = 0; i <= dw.length - n; i++) {
-                        auto gram = dw[i .. i + n];
-                        if (freq.get(gram, 0) > 0) {
-                            tokens.put(gram);
-                        }
-                    }
-                }
-            }
-            tokens.put(w);
-        }
-
-        return tokens.array;
-    }
-
     private:
 
-    void initialize() {
+    this(dstring dictContent) @safe {
+        // this constructor is solely for unittest purpose
+        loadImpl(dictContent);
+        initialized = true;
+    }
+
+    void initialize() @safe {
         if (initialized) return; // fast lane before entering synchronized
 
         synchronized {
@@ -165,16 +267,16 @@ class StandardTokenizer {
         }
     }
 
-    pair!(int)[] calc(dstring sentence, int[][] dag) {
+    Pair!(int)[] calc(dstring sentence, int[][] dag) @safe {
         auto n = cast(int) sentence.length;
         auto logtotal = log(total);
 
-        pair!(int)[] route;
+        Pair!(int)[] route;
         route.length = n + 1;
-        route[n] = pair!int(0, 0.0);
+        route[n] = Pair!int(0, 0.0);
 
         for (auto i = n - 1; i > -1; i--) {
-            auto candidate = pair!int(-1, -double.max);
+            auto candidate = Pair!int(-1, -double.max);
             foreach (x; dag[i])
             {
                 auto wfreq = freq.get(sentence[i .. x + 1], 1);
@@ -195,7 +297,7 @@ class StandardTokenizer {
         return route;
     }
 
-    int[][] getDag(dstring sentence) { // python impl = get_DAG
+    int[][] getDag(dstring sentence) @safe { // python impl = get_DAG
         initialize();
 
         auto n = cast(int) sentence.length;
@@ -229,7 +331,7 @@ class StandardTokenizer {
         return dag;
     }
 
-    dstring[] cutImplAll(dstring sentence) { // python impl = __cut_all
+    dstring[] cutImplAll(dstring sentence) @safe { // python impl = __cut_all
         auto dag = getDag(sentence);
 
         auto lastpos = -1;
@@ -242,7 +344,7 @@ class StandardTokenizer {
 
             if (engscan && sentence[k .. k + 1].matchFirst(REGEX_ENGLISH).empty) {
                 engscan = false;
-                tokens.put(cast(dstring) engbuf.array);
+                tokens.put(engbuf.array.dtext);
             }
 
             if ((v.length == 1) && (k > lastpos)) {
@@ -272,13 +374,13 @@ class StandardTokenizer {
         }
 
         if (engscan) {
-            tokens.put(cast(dstring) engbuf.array);
+            tokens.put(engbuf.array.dtext);
         }
 
         return tokens.array;
     }
 
-    dstring[] cutImplDwoH(dstring sentence) { // python impl = __cut_DAG_NO_HMM
+    dstring[] cutImplDwoH(dstring sentence) @safe { // python impl = __cut_DAG_NO_HMM
         auto dag = getDag(sentence);
         auto route = calc(sentence, dag);
 
@@ -294,7 +396,7 @@ class StandardTokenizer {
             if ((y - x == 1) && word.match(REGEX_ENGLISH)) {
                 buf.put(word);
             } else {
-                auto arr = cast(dstring) buf.array;
+                auto arr = buf.array.dtext;
                 if (arr.length > 0) {
                     tokens.put(arr);
                     buf.clear();
@@ -306,7 +408,7 @@ class StandardTokenizer {
             x = y;
         }
 
-        auto arr = cast(dstring) buf.array;
+        auto arr = buf.array.dtext;
         if (arr.length > 0) {
             tokens.put(arr);
             buf.clear();
@@ -315,17 +417,17 @@ class StandardTokenizer {
         return tokens.array;
     }
 
-    dstring[] cutImplDH(dstring sentence) { // python impl = __cut_DAG
-        void bufSeg(ref Appender!(dchar[]) buffer, ref Appender!(dstring[]) tokens) {
+    dstring[] cutImplDH(dstring sentence) @safe { // python impl = __cut_DAG
+        void bufSeg(ref Appender!(dchar[]) buffer, ref Appender!(dstring[]) tokens) @safe {
             import jieba.finalseg : finalcut = cut;
 
-            auto buf = cast(dstring) buffer.array;
+            auto buf = buffer.array.dtext;
 
             if (buf.length <= 0) return;
 
             if (buf.length == 1) {
                 tokens.put(buf);
-            } else if (buf !in freq) {
+            } else if (freq.get(buf, 0) == 0) {
                 auto recognized = finalcut(buf);
                 foreach(t; recognized) {
                     tokens.put(t);
@@ -367,7 +469,7 @@ class StandardTokenizer {
         return tokens.array;
     }
 
-    int suggestFreq(dstring segment) {
+    int suggestFreq(dstring segment) @safe {
         import std.math : fmax;
 
         initialize();
@@ -383,10 +485,14 @@ class StandardTokenizer {
         return cast(int) ffreq;
     }
 
-    void load(string path) { // not MT safe/idempotent (total)
-        auto content = path.readText.dtext;
+    void load(string path) @safe {
+        auto content = path.readText;
         content.validate;
 
+        loadImpl(content.dtext);
+    }
+
+    void loadImpl(dstring content) @safe { // not MT safe/idempotent (total)
         auto matches = content.matchAll(REGEX_USERDICT);
         foreach(match; matches) {
             auto word = match[1];
@@ -407,7 +513,7 @@ class StandardTokenizer {
 
     private:
 
-    struct pair(T) {
+    struct Pair(T) {
         T key;
         double freq;
     }
@@ -419,3 +525,83 @@ enum REGEX_USERDICT = regex(`^(.+?)(?:\s+([0-9]+))?(?:\s+([a-z]+))?$`d, "m"); //
 enum REGEX_ENGLISH = regex(`[a-zA-Z0-9]`d);
 enum REGEX_HANIDEFAULT = regex(`([\u4E00-\u9FD5a-zA-Z0-9+#&\._%\-]+)`d);
 enum REGEX_SKIPDEFAULT = regex(`(\r\n|\s)`d);
+
+unittest {
+    StdTestBuilder!("cut", "cutOutput");
+	StdTestBuilder!("cutSearch", "cutSearchOutput");
+    StdTestBuilder!("cutImplAll", "cutImplAllOutput");
+	StdTestBuilder!("cutImplDwoH", "cutImplDwoHOutput");
+    // StdTestBuilder!("cutImplDH", "cutImplDHOutput"); // already covered by cut - cutOutput
+}
+
+unittest {
+	import std.stdio;
+
+	auto x = new StandardSegmenter(UNITTEST_DICT);
+	auto input = "测试用例里难以发现的隐藏问题"d;
+
+	auto out1 = x.cutSearch(input).PrintSeg;
+	auto case1 = "测试/试用/测试用例/里/难以/发现/的/隐藏/问题/";
+	assert(out1 == case1, "Dict. modif. case 1 failed");
+
+	x.addWord("用例");
+	x.addWord("隐藏问题");
+	auto out2 = x.cutSearch(input).PrintSeg;
+	auto case2 = "测试/试用/用例/测试用例/里/难以/发现/的/隐藏/问题/隐藏问题/";
+	assert(out2 == case2, "Dict. modif. case 2 failed");
+
+	x.delWord("测试");
+	x.delWord("用例");
+	x.delWord("隐藏问题");
+	auto out3 = x.cutSearch(input).PrintSeg;
+	auto case3 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
+	assert(out3 == case3, "Dict. modif. case 3 failed");
+
+	x.delWord("测试用例");
+	x.delWord("隐藏");
+	auto out4 = x.cutSearch(input).PrintSeg;
+	auto case4 = "测/试用/例里/难以/发现/的/隐藏/问题/";
+	assert(out4 == case4, "Dict. modif. case 4 failed");
+}
+
+version(unittest):
+
+import std.traits : isSomeString;
+
+template StdTestBuilder(string method, string output) {
+	void testBody() {
+		import std.stdio;
+
+		import jieba.resources.testcases;
+
+		auto x = new StandardSegmenter(UNITTEST_DICT);
+		auto cnt = 0;
+
+		for(int i = 0; i < testInput.length; i++) {
+			mixin(`auto result = x.`, method, `(testInput[i].dtext).PrintSeg;`);
+			if(mixin(output, `[i] != result`))
+			{
+				writeln("Actual: " ~ result);
+				writeln("Expect: " ~ mixin(output, `[i]`));
+				writeln("------");
+				cnt++;
+			}
+		}
+
+		assert(cnt == 0, "Some test cases failed for " ~ method);
+	}
+
+	alias StdTestBuilder = testBody;
+}
+
+string PrintSeg(dstring[] v) {
+	import std.array;
+
+	auto ret = appender!string;
+	foreach(vv; v) {
+		ret.put(vv.text);
+        ret.put("/");
+    }
+
+	return ret.array;
+}

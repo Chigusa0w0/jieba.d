@@ -7,7 +7,16 @@ import std.regex;
 import std.typecons : Yes;
 import jieba.resources;
 
-auto cut(dstring sentence) {
+/**
+ * Segments a Chinese sentence into separated words dictionary-lessly based on HMM-Viterbi algorithm.
+ *
+ * Params:
+ *     sentence = The string to be segmented.
+ *
+ * Returns:
+ *     An array containing all segments of the `sentence`.
+ */
+auto cut(dstring sentence) @safe {
     auto blocks = sentence.splitter!(Yes.keepSeparators)(REGEX_HANI);
     auto tokens = appender!(dstring[]);
 
@@ -34,8 +43,8 @@ auto cut(dstring sentence) {
 
 private:
 
+static immutable STATES = [ "B", "M", "S", "E" ];
 enum MIN_FLOAT = -3.14e100;
-enum STATES = [ "B", "M", "S", "E" ];
 enum REGEX_HANI = regex(`([\u4E00-\u9FD5]+)`d);
 enum REGEX_SKIP = regex(`([a-zA-Z0-9]+(?:\.\d+)?%?)`d);
 
@@ -48,7 +57,7 @@ enum PREV_STATUS = ([
 
 dstring[] ForceSplitWords = []; // though ready to use, we hide it from public interfaces
 
-auto cutImpl(dstring sentence) { // python impl = __cut
+auto cutImpl(dstring sentence) @safe { // python impl = __cut
     auto posLink = viterbi(sentence);
     
     string[] posList;
@@ -90,7 +99,7 @@ auto cutImpl(dstring sentence) { // python impl = __cut
     return tokens.array;
 }
 
-auto viterbi(dstring sentence) {
+auto viterbi(dstring sentence) @safe {
     double[string][] V;
     Node[string] path;
 
@@ -135,4 +144,39 @@ auto viterbi(dstring sentence) {
 struct Node {
     string value;
     Node* parent;
+}
+
+unittest {
+    import std.stdio;
+
+    import jieba.resources.testcases;
+
+    auto cnt = 0;
+
+    for(int i = 0; i < testInput.length; i++) {
+        auto result = cut(testInput[i].dtext).PrintSeg;
+        if(cutViterbiOutput[i] != result)
+        {
+            writeln("Actual: " ~ result);
+            writeln("Expect: " ~ cutViterbiOutput[i]);
+            writeln("------");
+            cnt++;
+        }
+    }
+
+    assert(cnt == 0, "Some test cases failed for " ~ "cutViterbi");
+}
+
+version(unittest):
+
+string PrintSeg(dstring[] v) {
+	import std.array;
+
+	auto ret = appender!string;
+	foreach(vv; v) {
+		ret.put(vv.text);
+        ret.put("/");
+    }
+
+	return ret.array;
 }

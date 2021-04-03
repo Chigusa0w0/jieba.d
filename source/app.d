@@ -6,17 +6,13 @@ import jieba.resources;
 import jieba.stdseg;
 import jieba.finalseg;
 
+import std.conv;
 void main()
 {
-	// todo: tokenizer, posseg, tests
-	auto x = new StandardTokenizer(`.\dict\dict.txt`);
-	x.addWord("测试用例");
-	x.addWord("隐藏问题");
-	auto v = x.cutSearch("测试用例里难以发现的隐藏问题");
+	// todo: tokenizer, posseg
+	
+	auto x = new StandardSegmenter(`.\dict\dict.txt`);
 
-	foreach(vv; v) {
-		write(vv ~ "/");
-    }
 	writeln;
 
 	// system("pause");
