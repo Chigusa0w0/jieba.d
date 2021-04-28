@@ -50,4 +50,4 @@ Please read the `ddoc` documentation embedded in the code.
 
 - If compiled with other projects
   - Please provide an `ImportExpression` search path to `source/resources` directory of this project in the compiler command line.
-  - When using DMD, the parameter looks like `-J=". /source/resources"`. If you are using other compilers, please refer to the compiler manual for the parameter format.
+  - When using DMD, the parameter looks like `-J="../source/resources"`. If you are using other compilers, please refer to the compiler manual for the parameter format.
