@@ -170,13 +170,13 @@ unittest {
 version(unittest):
 
 string PrintSeg(dstring[] v) {
-	import std.array;
+    import std.array;
 
-	auto ret = appender!string;
-	foreach(vv; v) {
-		ret.put(vv.text);
+    auto ret = appender!string;
+    foreach(vv; v) {
+        ret.put(vv.text);
         ret.put("/");
     }
 
-	return ret.array;
+    return ret.array;
 }

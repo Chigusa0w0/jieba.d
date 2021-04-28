@@ -528,45 +528,45 @@ enum REGEX_SKIPDEFAULT = regex(`(\r\n|\s)`d);
 
 unittest {
     StdTestBuilder!("cut", "cutOutput");
-	StdTestBuilder!("cutSearch", "cutSearchOutput");
+    StdTestBuilder!("cutSearch", "cutSearchOutput");
     StdTestBuilder!("cutImplAll", "cutImplAllOutput");
-	StdTestBuilder!("cutImplDwoH", "cutImplDwoHOutput");
+    StdTestBuilder!("cutImplDwoH", "cutImplDwoHOutput");
     // StdTestBuilder!("cutImplDH", "cutImplDHOutput"); // already covered by cut - cutOutput
 }
 
 unittest {
-	import std.stdio;
+    import std.stdio;
 
-	auto x = new StandardSegmenter(UNITTEST_DICT);
-	auto input = "测试用例里难以发现的隐藏问题"d;
+    auto x = new StandardSegmenter(UNITTEST_DICT);
+    auto input = "测试用例里难以发现的隐藏问题"d;
 
-	auto out1 = x.cutSearch(input).PrintSeg;
-	auto case1 = "测试/试用/测试用例/里/难以/发现/的/隐藏/问题/";
-	assert(out1 == case1, "Dict. modif. case 1 failed");
+    auto out1 = x.cutSearch(input).PrintSeg;
+    auto case1 = "测试/试用/测试用例/里/难以/发现/的/隐藏/问题/";
+    assert(out1 == case1, "Dict. modif. case 1 failed");
 
-	x.addWord("用例");
-	x.addWord("隐藏问题");
-	auto out2 = x.cutSearch(input).PrintSeg;
-	auto case2 = "测试/试用/用例/测试用例/里/难以/发现/的/隐藏/问题/隐藏问题/";
-	assert(out2 == case2, "Dict. modif. case 2 failed");
+    x.addWord("用例");
+    x.addWord("隐藏问题");
+    auto out2 = x.cutSearch(input).PrintSeg;
+    auto case2 = "测试/试用/用例/测试用例/里/难以/发现/的/隐藏/问题/隐藏问题/";
+    assert(out2 == case2, "Dict. modif. case 2 failed");
 
-	x.delWord("测试");
-	x.delWord("用例");
-	x.delWord("隐藏问题");
-	auto out3 = x.cutSearch(input).PrintSeg;
-	auto case3 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
-	assert(out3 == case3, "Dict. modif. case 3 failed");
+    x.delWord("测试");
+    x.delWord("用例");
+    x.delWord("隐藏问题");
+    auto out3 = x.cutSearch(input).PrintSeg;
+    auto case3 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
+    assert(out3 == case3, "Dict. modif. case 3 failed");
 
-	x.delWord("测试用例");
-	x.delWord("隐藏");
-	auto out4 = x.cutSearch(input).PrintSeg;
-	auto case4 = "测/试用/例里/难以/发现/的/隐藏/问题/";
-	assert(out4 == case4, "Dict. modif. case 4 failed");
+    x.delWord("测试用例");
+    x.delWord("隐藏");
+    auto out4 = x.cutSearch(input).PrintSeg;
+    auto case4 = "测/试用/例里/难以/发现/的/隐藏/问题/";
+    assert(out4 == case4, "Dict. modif. case 4 failed");
 
     x.addWord("测试用例");
-	auto out5 = x.cutSearch(input).PrintSeg;
-	auto case5 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
-	assert(out5 == case5, "Dict. modif. case 5 failed");
+    auto out5 = x.cutSearch(input).PrintSeg;
+    auto case5 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
+    assert(out5 == case5, "Dict. modif. case 5 failed");
 }
 
 version(unittest):
@@ -574,39 +574,39 @@ version(unittest):
 import std.traits : isSomeString;
 
 template StdTestBuilder(string method, string output) {
-	void testBody() {
-		import std.stdio;
+    void testBody() {
+        import std.stdio;
 
-		import jieba.resources.testcases;
+        import jieba.resources.testcases;
 
-		auto x = new StandardSegmenter(UNITTEST_DICT);
-		auto cnt = 0;
+        auto x = new StandardSegmenter(UNITTEST_DICT);
+        auto cnt = 0;
 
-		for(int i = 0; i < testInput.length; i++) {
-			mixin(`auto result = x.`, method, `(testInput[i].dtext).PrintSeg;`);
-			if(mixin(output, `[i] != result`))
-			{
-				writeln("Actual: " ~ result);
-				writeln("Expect: " ~ mixin(output, `[i]`));
-				writeln("------");
-				cnt++;
-			}
-		}
+        for(int i = 0; i < testInput.length; i++) {
+            mixin(`auto result = x.`, method, `(testInput[i].dtext).PrintSeg;`);
+            if(mixin(output, `[i] != result`))
+            {
+                writeln("Actual: " ~ result);
+                writeln("Expect: " ~ mixin(output, `[i]`));
+                writeln("------");
+                cnt++;
+            }
+        }
 
-		assert(cnt == 0, "Some test cases failed for " ~ method);
-	}
+        assert(cnt == 0, "Some test cases failed for " ~ method);
+    }
 
-	alias StdTestBuilder = testBody;
+    alias StdTestBuilder = testBody;
 }
 
 string PrintSeg(dstring[] v) {
-	import std.array;
+    import std.array;
 
-	auto ret = appender!string;
-	foreach(vv; v) {
-		ret.put(vv.text);
+    auto ret = appender!string;
+    foreach(vv; v) {
+        ret.put(vv.text);
         ret.put("/");
     }
 
-	return ret.array;
+    return ret.array;
 }
