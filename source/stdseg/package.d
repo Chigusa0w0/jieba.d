@@ -562,6 +562,11 @@ unittest {
 	auto out4 = x.cutSearch(input).PrintSeg;
 	auto case4 = "测/试用/例里/难以/发现/的/隐藏/问题/";
 	assert(out4 == case4, "Dict. modif. case 4 failed");
+
+    x.addWord("测试用例");
+	auto out5 = x.cutSearch(input).PrintSeg;
+	auto case5 = "试用/测试用例/里/难以/发现/的/隐藏/问题/";
+	assert(out5 == case5, "Dict. modif. case 5 failed");
 }
 
 version(unittest):

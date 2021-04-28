@@ -17,3 +17,15 @@ void main()
 
 	// system("pause");
 }
+
+string PrintSeg(dstring[] v) {
+	import std.array;
+
+	auto ret = appender!string;
+	foreach(vv; v) {
+		ret.put(vv.text);
+        ret.put("/");
+    }
+
+	return ret.array;
+}
