@@ -5,13 +5,15 @@ import core.stdc.stdlib;
 import jieba.resources;
 import jieba.stdseg;
 import jieba.finalseg;
+import jieba.posseg.viterbi;
 
 import std.conv;
 void main()
 {
-	// todo: tokenizer, posseg
+	// todo: tokenizer, posseg, tfidf
 	
-	auto x = new StandardSegmenter(`.\dict\dict.txt`);
+	auto w = 0.0;
+	auto x = viterbi("这是一句测试用的句子"d, w);
 
 	writeln;
 

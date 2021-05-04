@@ -40,8 +40,8 @@ import asdf;
 
 mixin template JsonResourceLoader(T, string resname) {
     enum string RAW = import(resname ~ ".json");
-    static immutable T RES;
-    shared static this() {
+    static const T RES;
+    static this() {
         RES = RAW.deserialize!(T);
     }
     alias RES this;
@@ -49,8 +49,8 @@ mixin template JsonResourceLoader(T, string resname) {
 
 mixin template TextResourceLoader(T, string resname) {
     enum string RAW = import(resname ~ ".txt");
-    static immutable T RES;
-    shared static this() {
+    static const T RES;
+    static this() {
         RES = RAW.to!T;
     }
     alias RES this;
