@@ -2,12 +2,17 @@ module jieba.posseg.viterbi;
 
 import std.algorithm;
 import std.array;
-import std.conv : text;
+import std.conv : to, text, dtext;
 import jieba.resources;
 
 auto viterbi(dstring sentence, out double probLast) @trusted {
     double[string][] V;
     string[string][] path;
+
+    if(sentence.length == 0) { // handle empty sentence
+        probLast = 0.0;
+        return (string[]).init;
+    }
 
     V ~= (double[string]).init;
     path ~= (string[string]).init;
@@ -79,3 +84,51 @@ auto viterbi(dstring sentence, out double probLast) @trusted {
 private:
 
 enum MIN_FLOAT = -3.14e100;
+
+unittest {
+    import std.format;
+    import std.stdio;
+
+    import jieba.resources.testcases;
+
+    auto cnt = 0;
+
+    for(int i = 0; i < testInput.length; i++) {
+        auto prob = 0.0;
+        auto result = viterbi(testInput[i].dtext, prob).PrintSeg;
+        auto strProb = "";
+
+        if(prob > 1000000.0)
+            strProb = "inf";
+        else if(prob < -1000000.0)
+            strProb = "-inf";
+        else
+            strProb = format("%.4f", prob);
+
+        result ~= strProb;
+
+        if(posViterbiOutput[i] != result)
+        {
+            writeln("Actual: " ~ result);
+            writeln("Expect: " ~ cutViterbiOutput[i]);
+            writeln("------");
+            cnt++;
+        }
+    }
+
+    assert(cnt == 0, "Some test cases failed for " ~ "cutViterbi");
+}
+
+version(unittest):
+
+string PrintSeg(string[] v) {
+    import std.array;
+
+    auto ret = appender!string;
+    foreach(vv; v) {
+        ret.put(vv.text);
+        ret.put("/");
+    }
+
+    return ret.array;
+}
